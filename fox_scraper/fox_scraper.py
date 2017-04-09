@@ -22,8 +22,9 @@
 
 from bs4 import BeautifulSoup
 import requests
+import pika
 
-class fox_item(object):
+class FoxItem(object):
     def __init__(self, item_img_id, item_main_category, item_type, item_name, item_price):
         self.item_img_id = item_img_id
         self.item_main_category = item_main_category
@@ -44,6 +45,7 @@ class Scraper:
         self.site_address = site_address
         self.main_categories = []
         self.sub_categories = []
+        self.connection = pika.BlockingConnection(pika.ConnectionParameters(host='localhost'))
 
     def get_web_content(self, http_address):
         """
@@ -126,10 +128,23 @@ class Scraper:
         items = []
         for soup_sub_category in soup_sub_categories:
             soup_cat_sub_category = self.get_soup_object(self.get_web_content(soup_sub_category))
-            sub_cat_num = 0
-            for link in soup_cat_sub_category.find_all(class_='box padding_hf sp_p_padding_hf center border_b border_l margin_b_1'):
-                items.append(self.parse_item(link, main_cat_num, sub_cat_num))
-            sub_cat_num += 1
+            items += self.scrap_fox_items_sub_category(soup_cat_sub_category, main_cat_num)
+        return items
+
+    def scrap_fox_items_sub_category(self, soup_cat_sub_category, main_cat_num):
+        """
+        this function will receive web content for fox item and returns a list of items
+        :param soup_cat_sub_category: web content for fox item
+        :param main_cat_num: main category number
+        :return:
+        """
+        items = []
+        sub_cat_num = 0
+        for link in soup_cat_sub_category.find_all(
+                class_='box padding_hf sp_p_padding_hf center border_b border_l margin_b_1'):
+            items.append(self.parse_item(link, main_cat_num, sub_cat_num))
+        sub_cat_num += 1
+
         return items
 
     def parse_item(self, soup_item, main_cat_num, sub_cat_num):
@@ -142,9 +157,27 @@ class Scraper:
         item_price = soup_item.find_next(class_='price display_inline numbers').find_next(class_='display_inline').get_text()
         nums = item_price.split()
         item_price = float(float(nums[0]) + (float(nums[1])) / 100)
-        item = fox_item(item_img_id, self.main_categories[main_cat_num], self.sub_categories[main_cat_num][sub_cat_num], item_name, item_price)
+        item = FoxItem(item_img_id, self.main_categories[main_cat_num], self.sub_categories[main_cat_num][sub_cat_num], item_name, item_price)
         return item
 
+    def establish_rabbitmq_connection(self):
+        self.channel = self.connection.channel()
+        self.channel.exchange_declare(exchange='fox_scrap', type='direct')
+
+    def close_rabbitmq_connection(self):
+        self.connection.close()
+
+    def send_message_to_rabbitmq(self, message):
+        self.channel.basic_publish(exchange='fox_scrap', routing_key="fox", body=message)
+
+    def send_all_items_to_rabbitmq(self):
+        self.establish_rabbitmq_connection()     # TODO - verify - try using reference
+        catalog = scrap.scrap_fox_runner()
+        for item in catalog:
+            print item
+"""
 print "start"
 scrap = Scraper("https://www.fox.co.il/en")
 print scrap.scrap_fox_runner()
+scrap.send_all_items_to_rabbitmq()
+"""
