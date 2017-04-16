@@ -13,6 +13,7 @@ def test_scraper_initialization():
 
 def test_get_categories():
     scrap = Scraper("https://www.fox.co.il/en")
+    print "ASDDSD"
     main_categories_links = scrap.get_main_categories()
     assert_equal(main_categories_links, [u'https://www.fox.co.il/en/WOMEN',
                                          u'https://www.fox.co.il/en/men',
@@ -44,32 +45,37 @@ def test_get_catalog_sub_category():
     sub_category_catalog = BeautifulSoup(str(catalog), 'html.parser')
     sub_catalog = scrap.get_sub_category_catalog(sub_category_catalog, 0, 0)
     items = [FoxItem("https://www.fox.co.il/en/WOMEN/4143357/4143390/4143405",
-                     "WOMEN", "Shirts Woven/Denim", "SHIRT WOVEN", "119.9"),
+                     "WOMEN", "Shirts Woven/Denim", "SHIRT WOVEN", 119.9),
              FoxItem("https://www.fox.co.il/en/WOMEN/4143357/4143390/4143404",
-                     "WOMEN", "Shirts Woven/Denim", "SHIRT WOVEN", "81.9"),
+                     "WOMEN", "Shirts Woven/Denim", "SHIRT WOVEN", 81.9),
              FoxItem("https://www.fox.co.il/en/WOMEN/4143357/4143390/4143403",
-                     "WOMEN", "Shirts Woven/Denim", "SHIRT WOVEN", "129.9"),
+                     "WOMEN", "Shirts Woven/Denim", "SHIRT WOVEN", 129.9),
              FoxItem("https://www.fox.co.il/en/WOMEN/4143357/4143390/4143402",
-                     "WOMEN", "Shirts Woven/Denim", "SHIRT WOVEN", "119.9"),
+                     "WOMEN", "Shirts Woven/Denim", "SHIRT WOVEN", 119.9),
              FoxItem("https://www.fox.co.il/en/WOMEN/4143357/4143390/4143397",
-                     "WOMEN", "Shirts Woven/Denim", "SHIRT WOVEN", "119.9"),
+                     "WOMEN", "Shirts Woven/Denim", "SHIRT WOVEN", 119.9),
              FoxItem("https://www.fox.co.il/en/WOMEN/4143357/4143390/4143393",
-                     "WOMEN", "Shirts Woven/Denim", "SHIRT WOVEN", "79.9"),
+                     "WOMEN", "Shirts Woven/Denim", "SHIRT WOVEN", 79.9),
              FoxItem("https://www.fox.co.il/en/WOMEN/4143357/4143390/4143391",
-                     "WOMEN", "Shirts Woven/Denim", "SHIRT WOVEN", "119.9"),
+                     "WOMEN", "Shirts Woven/Denim", "SHIRT WOVEN", 119.9),
              FoxItem("https://www.fox.co.il/en/WOMEN/4143357/4143390/4143474",
-                     "WOMEN", "Shirts Woven/Denim", "SHIRT WOVEN", "129.9"),
+                     "WOMEN", "Shirts Woven/Denim", "SHIRT WOVEN", 129.9),
              FoxItem("https://www.fox.co.il/en/WOMEN/4143357/4143390/4143477",
-                     "WOMEN", "Shirts Woven/Denim", "SHIRT WOVEN", "119.9")]
+                     "WOMEN", "Shirts Woven/Denim", "SHIRT WOVEN", 119.9)]
 
-    # @Caduri - plz advise - to compare the actual lists of the objects (FoxItem),
-    # I could not do it directly, I needed to download a special package or do it the "hard way"
-    # I created a new function in FoxItem class that returns all fields as complete string....
-    # and... it look really f..up
-    # what is the proper way to test it? I thought maybe compare the list using a simple "if" statement
-    # (it works) and then use the assert_equal on the result. but it's feels like "cheating"
-    for item_num in range(len(sub_catalog)):
-        assert_equal(sub_catalog[item_num].print_assert(), items[item_num].print_assert())
-        assert_equal(sub_catalog[item_num].print_assert(), items[item_num].print_assert())
+    assert_equal(sub_catalog, items)
 
 
+def test_send_item():
+    scrap = Scraper("https://www.fox.co.il/en")
+
+    items = [   [FoxItem("https://www.fox.co.il/en/WOMEN/4143357/4143390/4143405",
+                    "WOMEN", "Shirts Woven/Denim", "SHIRT WOVEN", 119.9),
+                FoxItem("https://www.fox.co.il/en/WOMEN/4143357/4143390/4143404",
+                    "WOMEN", "Shirts Woven/Denim", "SHIRT WOVEN", 81.9)],
+                [FoxItem("https://www.fox.co.il/en/MEN/4143357/4143390/4143474",
+                    "MEN", "Shirts Woven/Denim", "T-SHIRT", 100.9),
+                 FoxItem("https://www.fox.co.il/en/MEN/4143357/4143390/4143477",
+                    "MEN", "Shirts Woven/Denim", "T-SHIRT", 70.9)]]
+
+    scrap.send_all_items(items)
