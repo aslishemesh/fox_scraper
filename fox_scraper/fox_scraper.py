@@ -147,13 +147,3 @@ class Scraper:
             for items in catalog:
                 for item in items:
                     rabbit_sender.send_message(item)
-
-
-# Temp test for debugging...
-"""
-print "start"
-item = FoxItem("1", "2", "3", "4", 5)
-scrap = Scraper("https://www.fox.co.il/en")
-# scrap.send_all_items(scrap.runner())
-scrap.runner()
-"""
