@@ -63,8 +63,10 @@ class Scraper:
         main_categories_content = self.get_parsed_web_content(self.site_address)
         main_categories_links = []
         for link in main_categories_content.find_all(class_='link padding_hf_v '):
-            main_categories_links.append(link.get('href'))
-            self.main_categories_dict.update({str(link.get_text().strip()): link.get('href')})
+            category_link = link.get('href')
+            category_name = link.get_text().strip()
+            main_categories_links.append(category_link)
+            self.main_categories_dict.update({category_name: category_link})
 
     def get_sub_categories(self, main_category):
         """
@@ -102,8 +104,8 @@ class Scraper:
         """
         items = []
         for sub_category in self.sub_categories_dict[main_category]:
-            cat_sub_category = self.get_parsed_web_content(sub_category["Sub-Category-Link"])
-            items += self.get_sub_category_catalog(cat_sub_category, main_category, sub_category["Sub-Category-Name"])
+            sub_category_parser = self.get_parsed_web_content(sub_category["Sub-Category-Link"])
+            items += self.get_sub_category_catalog(sub_category_parser, main_category, sub_category["Sub-Category-Name"])
         return items
 
     def get_sub_category_catalog(self, cat_sub_category, main_category, sub_category):
