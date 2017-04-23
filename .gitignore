@@ -3,4 +3,5 @@
 .DS_Store
 venv
 tests/.DS_Store
+fox_scraper/.DS_Store
 *.log
