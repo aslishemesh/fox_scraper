@@ -19,7 +19,6 @@
             2. publish_data_to_rabbitmq() - this function will publish all data towards rabbitmq
 '''
 
-
 from bs4 import BeautifulSoup
 from fox_helper import FoxItem
 from fox_helper import FoxSender
@@ -29,8 +28,9 @@ import requests
 class Scraper:
     def __init__(self, site_address):
         self.site_address = site_address
-        self.main_categories = []
-        self.sub_categories = []
+        self.main_categories_dict = {}  # contains { Main_category_name: Main_category_link }
+        self.sub_categories_dict = {}   # contains { "Sub-Category-Name": sub_category_name,
+                                        #            "Sub-Category-Link": sub-category-link }
 
     def get_parsed_web_content(self, http_address):
         """
@@ -46,16 +46,17 @@ class Scraper:
         this function will activate the scraping of the web address revieced on contruction of the class
         :return: a list of items (Item class) of the entire catalog
         """
-        main_categories_links = self.get_main_categories()
+        self.get_main_categories()
         catalog = []
-        for main_cat_num in range(len(main_categories_links)):
-            sub_categories = self.get_sub_categories(main_categories_links[main_cat_num], main_cat_num)
-            category_catalog = self.get_category_catalog(sub_categories, main_cat_num)
+        for main_category in self.main_categories_dict:
+            self.get_sub_categories(main_category)
+            category_catalog = self.get_category_catalog(main_category)
             catalog.append(category_catalog)
-        return catalog
+        self.send_all_items(catalog)
 
     def get_main_categories(self):
         """
+        this function will scrap all main catalog categories
         this function will scrap all main catalog categories
         :return: a list of beutifulSoup objects
         """
@@ -63,24 +64,23 @@ class Scraper:
         main_categories_links = []
         for link in main_categories_content.find_all(class_='link padding_hf_v '):
             main_categories_links.append(link.get('href'))
-            self.main_categories.append(link.get_text().strip())
-        return main_categories_links
+            self.main_categories_dict.update({str(link.get_text().strip()): link.get('href')})
 
-    def get_sub_categories(self, category_link, category_num):
+    def get_sub_categories(self, main_category):
         """
         this function will scrap sub-catalog links per category
-        :param category_link: sub-category link from the site
-        :param category_num: category number for item description
+        :param main_category: category link from the site
         :return: a list of sub-categories link per main-category
         """
-        sub_categories_content = self.get_parsed_web_content(str(category_link))
+        category_link = self.main_categories_dict[main_category]
+        sub_categories_content = self.get_parsed_web_content(category_link)
+
         sub_categories = []
-        self.sub_categories.append([])
         for sub_category in sub_categories_content.find_all('option'):
-            current_sub_category = self.verify_item_encoding((sub_category.get_text()).strip())
-            self.sub_categories[category_num].append(current_sub_category)
-            sub_categories.append(format(sub_category['value']))
-        return sub_categories
+            current_sub_category = sub_category.get_text().strip()
+            current_sub_category = self.verify_item_encoding(current_sub_category)
+            sub_categories.append({"Sub-Category-Name": current_sub_category, "Sub-Category-Link": format(sub_category['value'])})
+        self.sub_categories_dict.update({main_category: sub_categories})
 
     def verify_item_encoding(self, item_name):
         """
@@ -94,60 +94,66 @@ class Scraper:
         else:
             return item_name
 
-    def get_category_catalog(self, sub_categories, main_cat_num):
+    def get_category_catalog(self, main_category):
         """
         this function will scrap the catalog from a specific category
-        :param sub_categories: beutifulSoup object of a specific category
-        :param main_cat_num: main category number
+        :param main_category: main category name
         :return: list of items for this category
         """
         items = []
-        for sub_cat_num in range(len(sub_categories)):
-            cat_sub_category = self.get_parsed_web_content(sub_categories[sub_cat_num])
-            items += self.get_sub_category_catalog(cat_sub_category, main_cat_num, sub_cat_num)
+        for sub_category in self.sub_categories_dict[main_category]:
+            cat_sub_category = self.get_parsed_web_content(sub_category["Sub-Category-Link"])
+            items += self.get_sub_category_catalog(cat_sub_category, main_category, sub_category["Sub-Category-Name"])
         return items
 
-    def get_sub_category_catalog(self, cat_sub_category, main_cat_num, sub_cat_num):
+    def get_sub_category_catalog(self, cat_sub_category, main_category, sub_category):
         """
         this function will receive web content for fox item and returns a list of items
+        :param main_category: main category name
+        :param sub_category: sub-category main category name
         :param cat_sub_category: web content for fox item
-        :param main_cat_num: main category number
-        :return:
+        :return: list of sub-catalog items
         """
         items = []
-        for link in cat_sub_category.find_all(class_='box padding_hf sp_p_padding_hf center border_b border_l margin_b_1'):
-            items.append(self.parse_item(link, main_cat_num, sub_cat_num))
+        for link in cat_sub_category.find_all(
+                class_='box padding_hf sp_p_padding_hf center border_b border_l margin_b_1'):
+            current_item = self.parse_item(link, main_category, sub_category)
+            items.append(current_item)
 
         return items
 
-    def parse_item(self, html_item, main_cat_num, sub_cat_num):
+    def parse_item(self, html_item, main_category, sub_category):
         """
         parse the information into Item class
         :return: Item class
         """
         item_img_id = html_item.find_next().get('href')
         item_name = html_item.find_next(class_='pname margin_hf_b').get_text()
-        item_price = html_item.find_next(class_='price display_inline numbers').find_next(class_='display_inline').get_text()
+        item_price = html_item.find_next(class_='price display_inline numbers').find_next(
+            class_='display_inline').get_text()
         nums = item_price.split()
         item_price = float(float(nums[0]) + (float(nums[1])) / 100)
-        item = FoxItem(item_img_id, self.main_categories[main_cat_num], self.sub_categories[main_cat_num][sub_cat_num], item_name, item_price)
+        item = FoxItem(item_img_id, main_category, sub_category,
+                       item_name, item_price)
         return item
 
-
-    # TODO - change location to new "program" function and not here
     def send_all_items(self, catalog):
+        """
+        send all catalog to rabbitmq
+        :param catalog: list of FoxItem's lists
+        :return:
+        """
+        with FoxSender() as rabbit_sender:
+            for items in catalog:
+                for item in items:
+                    rabbit_sender.send_message(item)
 
-        rabbit_sender = FoxSender()
-        for items in catalog:
-            for item in items:
-                rabbit_sender.send_message(item)
-        rabbit_sender.close_connection()
 
 # Temp test for debugging...
 """
 print "start"
-item = FoxItem("1","2","3","4",5)
-print item.__dict__
+item = FoxItem("1", "2", "3", "4", 5)
 scrap = Scraper("https://www.fox.co.il/en")
-scrap.send_all_items(scrap.runner())
+# scrap.send_all_items(scrap.runner())
+scrap.runner()
 """
