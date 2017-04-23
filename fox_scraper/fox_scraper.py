@@ -62,11 +62,12 @@ class Scraper:
         """
         main_categories_content = self.get_parsed_web_content(self.site_address)
         main_categories_links = []
-        for link in main_categories_content.find_all(class_='link padding_hf_v '):
-            category_link = link.get('href')
-            category_name = link.get_text().strip()
-            main_categories_links.append(category_link)
-            self.main_categories_dict.update({category_name: category_link})
+        main_categories_scraper = main_categories_content.find_all(class_='link padding_hf_v ')
+        for link in main_categories_scraper:
+            main_category_name = link.get_text().strip()
+            main_category_link = link.get('href')
+            main_categories_links.append(main_category_link)
+            self.main_categories_dict.update({main_category_name: main_category_link})
 
     def get_sub_categories(self, main_category):
         """
@@ -76,9 +77,9 @@ class Scraper:
         """
         category_link = self.main_categories_dict[main_category]
         sub_categories_content = self.get_parsed_web_content(category_link)
-
         sub_categories = []
-        for sub_category in sub_categories_content.find_all('option'):
+        sub_categories_scraper = sub_categories_content.find_all('option')
+        for sub_category in sub_categories_scraper:
             current_sub_category = sub_category.get_text().strip()
             current_sub_category = self.verify_item_encoding(current_sub_category)
             sub_categories.append({"Sub-Category-Name": current_sub_category, "Sub-Category-Link": format(sub_category['value'])})
@@ -117,8 +118,9 @@ class Scraper:
         :return: list of sub-catalog items
         """
         items = []
-        for link in cat_sub_category.find_all(
-                class_='box padding_hf sp_p_padding_hf center border_b border_l margin_b_1'):
+        sub_category_items_links = cat_sub_category.find_all(
+                class_='box padding_hf sp_p_padding_hf center border_b border_l margin_b_1')
+        for link in sub_category_items_links:
             current_item = self.parse_item(link, main_category, sub_category)
             items.append(current_item)
 
@@ -146,6 +148,4 @@ class Scraper:
         :return:
         """
         with FoxSender() as rabbit_sender:
-            for items in catalog:
-                for item in items:
-                    rabbit_sender.send_message(item)
+            [rabbit_sender.send_message(item) for items in catalog for item in items]
