@@ -1,7 +1,6 @@
 #!/bin/bash
-# A simple script
+# Fox scrap catalog
 
-echo -e “Running nosetests…”
-./venv/bin/nosetests -s >> asli.log
+echo -e “Running Fox scraper…”
 ./venv/bin/python fox_runner.py
 echo “Finished !”
